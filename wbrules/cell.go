@@ -389,9 +389,19 @@ func (dev *CellModelLocalDevice) queryParams() {
 }
 
 func (dev *CellModelLocalDevice) publishCell(cell *Cell) string {
-	return dev.Observer.OnNewControl(
-		dev, cell.name, cell.controlType, cell.value, cell.readonly,
-		cell.max, !cell.IsButton())
+	writability := wbgo.DefaultWritability
+	if cell.readonly {
+		// TODO: also support 'writable'
+		writability = wbgo.ForceReadOnly
+	}
+	return dev.Observer.OnNewControl(dev, wbgo.Control{
+		Name:        cell.name,
+		Type:        cell.controlType,
+		Value:       cell.value,
+		Writability: writability,
+		HasMax:      cell.max >= 0,
+		Max:         cell.max,
+	})
 }
 
 func (dev *CellModelLocalDevice) IsVirtual() bool {
