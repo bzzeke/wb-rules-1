@@ -1,36 +1,32 @@
-hash: b2f27ab2f447e655e967c81cec65b65a66d652a7cac3829b5d7966186ea9fcfb
-updated: 2016-05-17T01:06:25.086746739Z
+hash: d19c478c8d36a609418914caccddd6d67b7b2c09d010a764714e469ee8d485be
+updated: 2017-07-14T09:50:53.265370822+03:00
 imports:
 - name: github.com/contactless/org.eclipse.paho.mqtt.golang
   version: bc107ec72972f0e7048787415ea061578b5c3f33
   subpackages:
   - packets
 - name: github.com/contactless/wbgo
-  version: b4f50f05d953975e0dc0401a65c604f8fe98f496
+  version: 711aa487d765470bc9d86b751347caec62f713d4
   subpackages:
   - testutils
 - name: github.com/DisposaBoy/JsonConfigReader
   version: 33a99fdf1d5ee1f79b5077e9c06f955ad356d5f4
 - name: github.com/ivan4th/go-duktape
-  version: eaa33641120743ac97315445a0a739c2776182e5
+  version: 3cfd5915835f159715a95466edb9570f913372ec
 - name: github.com/robfig/cron
-  version: 8dc4916d418b9d0b2e23c9c1e68351dc9a1d6573
+  version: 736158dc09e10f1911ca3a1e1b01f11b566ce5db
 - name: github.com/stretchr/objx
-  version: 1a9d0bb9f541897e62256577b352fdbc1fb4fd94
+  version: cbeaeb16a013161a98496fad62933b1d21786672
 - name: github.com/stretchr/testify
-  version: 6cb3b85ef5a0efef77caef88363ec4d4b5c0976d
+  version: e4ec8152c15fc46bd5056ce65997a07c7d415325
   subpackages:
   - assert
   - require
   - suite
 - name: golang.org/x/net
-  version: 815d315ead425c4365077d904a2331ee9e179820
+  version: f2499483f923065a842d38eb4c7f1927e6fc6e6d
   subpackages:
   - websocket
-- name: golang.org/x/sys
-  version: f64b50fbea64174967a8882830d621a18ee1548e
-  subpackages:
-  - unix
 - name: gopkg.in/fsnotify.v1
-  version: 30411dbcefb7a1da7e84f75530ad3abe4011b4f8
-devImports: []
+  version: 7be54206639f256967dd82fa767397ba5f8f48f5
+testImports: []

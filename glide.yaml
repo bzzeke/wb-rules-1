@@ -4,7 +4,7 @@ import:
 - package: github.com/contactless/wbgo
   subpackages:
   - testutils
-  version: ~0.0.3
+  version: 711aa487d765470bc9d86b751347caec62f713d4
 - package: github.com/ivan4th/go-duktape
 - package: github.com/robfig/cron
 - package: github.com/stretchr/objx
