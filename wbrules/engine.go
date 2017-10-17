@@ -35,6 +35,7 @@ const (
 	ENGINE_CONTROL_CHANGE_SUBS_CAPACITY = 2
 	ENGINE_CONTROL_RULES_CAPACITY       = 8
 	ENGINE_NOTED_CONTROLS_CAPACITY      = 4
+	ENGINE_PENDING_CONTROLS_CAPACITY    = 8
 
 	ENGINE_EVENT_BUFFER_CAP = 16
 
@@ -112,6 +113,7 @@ type proxyOwner interface {
 	Driver() wbgo.Driver
 	getRev() uint32
 	trackControlSpec(ControlSpec)
+	deferSetValue(ctrl wbgo.Control, value interface{})
 }
 
 type DeviceProxy struct {
@@ -298,8 +300,11 @@ func (ctrlProxy *ControlProxy) SetValue(value interface{}) {
 	err := ctrlProxy.accessDriver(func(tx wbgo.DriverTx) error {
 		ctrl.SetTx(tx)
 		_, isLocal = ctrl.GetDevice().(wbgo.LocalDevice)
-		return ctrl.SetValue(value)()
+		return nil //return ctrl.SetValue(value)()
 	})
+
+	// pend update action in driver if necessary
+	ctrlProxy.devProxy.owner.deferSetValue(ctrl, value)
 
 	if isLocal {
 		// run update value handler immediately, don't wait for wbgo backend
@@ -379,6 +384,11 @@ func (o *RuleEngineOptions) SetStatsdClient(c *wbgo.StatsdClientWrapper) *RuleEn
 	return o
 }
 
+type ControlUpdateTask struct {
+	ctrl  wbgo.Control
+	value interface{}
+}
+
 type RuleEngine struct {
 	active          uint32 // atomic
 	cleanup         *ScopedCleanup
@@ -408,6 +418,9 @@ type RuleEngine struct {
 	rulesWithoutControls  map[*Rule]bool
 	timerRules            map[string][]*Rule
 	uninitializedRules    []*Rule
+
+	pendingControlUpdates []ControlUpdateTask
+	deferControlUpdates   bool
 
 	notedControls   []ControlSpec
 	notedTimers     map[string]bool
@@ -465,6 +478,9 @@ func NewRuleEngine(driver wbgo.Driver, mqtt wbgo.MQTTClient, options *RuleEngine
 		readyCh:               nil,
 		uninitializedRules:    make([]*Rule, 0, ENGINE_UNINITIALIZED_RULES_CAPACITY),
 		cleanupOnStop:         options.cleanupOnStop,
+
+		pendingControlUpdates: make([]ControlUpdateTask, 0, ENGINE_PENDING_CONTROLS_CAPACITY),
+		deferControlUpdates:   false,
 
 		controlChangeSubs: make([]chan *ControlChangeEvent, 0, ENGINE_CONTROL_CHANGE_SUBS_CAPACITY),
 	}
@@ -672,6 +688,48 @@ func (engine *RuleEngine) driverEventHandler(event wbgo.DriverEvent) {
 	}
 
 	engine.eventBuffer.PushEvent(cce)
+}
+
+func (engine *RuleEngine) SetDeferredValues() (errs []error) {
+	waiters := make([]func() error, 0, len(engine.pendingControlUpdates))
+
+	engine.driver.Access(func(tx wbgo.DriverTx) error {
+		for _, task := range engine.pendingControlUpdates {
+			ctrl := task.ctrl
+			ctrl.SetTx(tx)
+			waiters = append(waiters, ctrl.SetValue(task.value))
+		}
+
+		// wait for all actions to finish
+		// TODO: maybe move it out of Access
+		for _, f := range waiters {
+			if err := f(); err != nil {
+				errs = append(errs, err)
+			}
+		}
+
+		return nil
+	})
+
+	engine.pendingControlUpdates = engine.pendingControlUpdates[0:0]
+
+	return
+}
+
+func (engine *RuleEngine) doSetValue(ctrl wbgo.Control, value interface{}) error {
+	return engine.driver.Access(func(tx wbgo.DriverTx) error {
+		ctrl.SetTx(tx)
+		return ctrl.SetValue(value)()
+	})
+}
+
+func (engine *RuleEngine) deferSetValue(ctrl wbgo.Control, value interface{}) {
+	if engine.deferControlUpdates {
+		engine.pendingControlUpdates = append(engine.pendingControlUpdates, ControlUpdateTask{ctrl, value})
+	} else {
+		// TODO: handle error here
+		engine.doSetValue(ctrl, value)
+	}
 }
 
 func (engine *RuleEngine) CallSync(thunk func()) {
@@ -925,6 +983,14 @@ func (engine *RuleEngine) RunRules(ctrlEvent *ControlChangeEvent, timerName stri
 		}
 	}
 
+	// start update pending
+	engine.deferControlUpdates = true
+	defer func() {
+		// TODO: handle errors
+		engine.SetDeferredValues()
+		engine.deferControlUpdates = false
+	}()
+
 	for _, ruleId := range engine.ruleList {
 		engine.ruleMap[ruleId].Check(ctrlEvent)
 	}
@@ -1107,6 +1173,14 @@ func (engine *RuleEngine) StartTimer(name string, callback func(), interval time
 						wasActive := entry.active
 						entry.Unlock()
 						if wasActive {
+							// defer control change
+							engine.deferControlUpdates = true
+							defer func() {
+								// TODO: handle errors here
+								engine.SetDeferredValues()
+								engine.deferControlUpdates = false
+							}()
+
 							engine.fireTimer(n)
 						}
 					}
