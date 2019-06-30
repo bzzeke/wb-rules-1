@@ -114,6 +114,14 @@
           "minimum" : 0,
           "default" : 0,
           "propertyOrder" : 8
+        },
+        "hysteresis": {
+          "type": "number",
+          "title": "Hysteresis",
+          "description": "If set, its value will be used as hysteresis to the cell value when deactivating alarm",
+          "minimum": 0,
+          "default": 0,
+          "propertyOrder": 9
         }
       }
     },
@@ -181,7 +189,7 @@
           "not": {
             "required" : ["minValue"]
           }
-        } 
+        }
       ]
     },
     "minMaxValueAlarm": {
@@ -211,7 +219,7 @@
       "title" : "Recipient",
       "oneOf": [
         { "$ref": "#/definitions/emailRecipient" },
-        { "$ref": "#/definitions/smsRecipient" }        
+        { "$ref": "#/definitions/smsRecipient" }
       ],
       "options": {
         "disable_collapse" : true

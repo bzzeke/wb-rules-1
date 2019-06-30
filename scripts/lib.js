@@ -402,6 +402,7 @@ var Alarms = (function () {
         hasExpectedValue = alarmSrc.hasOwnProperty("expectedValue"),
         hasMinValue = checkHasNumKey("minValue"),
         hasMaxValue = checkHasNumKey("maxValue"),
+        hasHysteresis = checkHasNumKey("hysteresis"),
         alarmMessage = alarmSrc.alarmMessage ||
           alarmSrc.cell + (hasExpectedValue ? " has unexpected value = {}" : " is out of bounds, value = {}"),
         noAlarmMessage = alarmSrc.noAlarmMessage ||
@@ -422,6 +423,7 @@ var Alarms = (function () {
       min = hasMinValue ? alarmSrc.minValue : -Infinity;
       max = hasMaxValue ? alarmSrc.maxValue : Infinity;
     }
+    hysteresis = hasHysteresis ? alarmSrc.hysteresis : 0;
 
     if (alarmSrc.hasOwnProperty("interval")) {
       // !(alarmSrc.interval > 0) covers NaN case
@@ -516,7 +518,7 @@ var Alarms = (function () {
           asSoonAs: hasExpectedValue ? function () {
             return cellValue() == alarmSrc.expectedValue;
           } : function () {
-            return cellValue() >= min && cellValue() <= max;
+            return cellValue() >= (min + hysteresis) && cellValue() <= (max - hysteresis);
           },
           then: function () {
             // Set 'alarm active' cell to false during the
